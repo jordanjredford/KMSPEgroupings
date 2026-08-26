@@ -288,6 +288,8 @@
       <label>Class name</label>
       <input type="text" id="className" placeholder="e.g. Period 3 — Biology">
     </div>
+    <label>Grade level <span style="font-weight:400;text-transform:none;letter-spacing:0;">(auto-fills new students' grade below — you can still override any student individually)</span></label>
+    <input type="text" id="classGradeLevel" placeholder="e.g. 8">
 
     <label>Import students (optional)</label>
     <textarea id="pasteInput" placeholder="Paste roster lines here, one student per line (e.g. Last, First)…"></textarea>
@@ -303,7 +305,7 @@
       <table class="roster-table">
         <thead>
           <tr>
-            <th>Last name</th><th>First name</th><th>Nickname</th><th>Perm ID</th><th class="col-grade">Grade</th><th>Gender</th><th>Birth date</th><th></th>
+            <th>Last name</th><th>First name</th><th>Nickname</th><th class="col-grade">Grade</th><th>Gender</th><th></th>
           </tr>
         </thead>
         <tbody id="rosterTableBody"></tbody>
@@ -482,7 +484,7 @@
   }
   const STUDENT_BATCH_SIZE = 6;
   function cleanStudent(s){
-    return { lastName:s.lastName||'', firstName:s.firstName||'', nickname:s.nickname||'', permId:s.permId||'', grade:s.grade||'', gender:s.gender||'', birthDate:s.birthDate||'' };
+    return { lastName:s.lastName||'', firstName:s.firstName||'', nickname:s.nickname||'', grade:s.grade||'', gender:s.gender||'' };
   }
   async function saveStudentsBatched(classId, students, onProgress){
     const chunks = chunkArray(students, STUDENT_BATCH_SIZE);
@@ -514,7 +516,7 @@
 
   let modalMode = null;        // 'create' | 'edit' | 'replace'
   let modalClassId = null;
-  let modalStudents = [];      // [{id?, lastName, firstName, nickname, permId, grade, gender, birthDate}]
+  let modalStudents = [];      // [{id?, lastName, firstName, nickname, grade, gender}]
   let modalOriginalIds = new Set();
   let bulkBlocks = [];         // detected classes from a Grade Book Grid upload
 
@@ -1046,7 +1048,7 @@
       if(commaMatch){
         current.students.push({
           lastName: commaMatch[1].trim(), firstName: commaMatch[2].trim(), nickname: '',
-          permId: '', grade: current.meta.gradeLevel || '', gender: '', birthDate: ''
+          grade: current.meta.gradeLevel || '', gender: ''
         });
       }
     });
@@ -1054,41 +1056,23 @@
     return blocks;
   }
 
-  /* ---------------- roster line parsing (PDF / paste) ---------------- */
+  /* ---------------- roster line parsing (paste) ---------------- */
   function looksLikeName(line){
     let s = line.replace(/[#*•]/g, '').trim();
     if(!s) return false;
     const lower = s.toLowerCase();
-    const bad = ['class list','roster','period','teacher','grade','school','page','date','student id','id:','count','total','homeroom','attendance','subject','section','absent','present','perm id','birth date'];
+    const bad = ['class list','roster','period','teacher','grade','school','page','date','student id','id:','count','total','homeroom','attendance','subject','section','absent','present'];
     if(bad.some(b => lower.includes(b))) return false;
     let cleaned = s.replace(/^\d+[\.\)]?\s*/, '').replace(/\d+\s*$/, '').trim();
     if(cleaned.length > 60 || cleaned.length < 2) return false;
     const tokens = cleaned.split(/[,\s]+/).filter(t => /[A-Za-z]/.test(t));
     return tokens.length >= 2;
   }
-  function normalizeGender(g){
-    const l = String(g).toLowerCase();
-    if(l === 'm' || l === 'male') return 'Male';
-    if(l === 'f' || l === 'female') return 'Female';
-    return g;
-  }
   function parseRosterLines(lines){
-    // Skip everything up through the real column-header row (e.g. "Student Name  Perm ID  Grade  Gender  Birth Date").
-    // This reliably drops school name / year / report-ID title lines regardless of exact wording,
-    // instead of relying only on keyword filtering below.
-    const headerIdx = lines.findIndex(l => /perm\s*id/i.test(l) || (/student\s*name/i.test(l) && /grade/i.test(l)));
-    const relevantLines = headerIdx !== -1 ? lines.slice(headerIdx + 1) : lines;
-
     const out = [];
-    relevantLines.forEach(raw => {
+    lines.forEach(raw => {
       const s = raw.trim();
       if(!s) return;
-      // Structured format: "Last, First(s) PermID Grade Gender MM/DD/YYYY"
-      const m = s.match(/^([A-Za-z'’\-\.\s]+?),\s*([A-Za-z'’\-\.\s]+?)\s+(\d{4,})\s+(\d{1,2})\s+(Male|Female|M|F)\s+(\d{1,2}\/\d{1,2}\/\d{2,4})\s*$/i);
-      if(m){
-        out.push({ lastName: m[1].trim(), firstName: m[2].trim(), nickname: '', permId: m[3], grade: m[4], gender: normalizeGender(m[5]), birthDate: m[6] });
-        return;
-      }
       if(!looksLikeName(s)) return;
       const commaMatch = s.match(/^([A-Za-z'’\-]+),\s*(.+)$/);
       let lastName = '', firstName = '';
@@ -1099,7 +1083,7 @@
         lastName = parts.length > 1 ? parts[parts.length - 1] : '';
         firstName = parts.length > 1 ? parts.slice(0, -1).join(' ') : cleaned;
       }
-      out.push({ lastName, firstName, nickname: '', permId: '', grade: '', gender: '', birthDate: '' });
+      out.push({ lastName, firstName, nickname: '', grade: '', gender: '' });
     });
     return out;
   }
@@ -1112,7 +1096,6 @@
         <td><input data-f="lastName" value="${escapeAttr(s.lastName)}"></td>
         <td><input data-f="firstName" value="${escapeAttr(s.firstName)}"></td>
         <td><input data-f="nickname" value="${escapeAttr(s.nickname)}" placeholder="optional"></td>
-        <td><input data-f="permId" value="${escapeAttr(s.permId)}"></td>
         <td class="col-grade"><input data-f="grade" value="${escapeAttr(s.grade)}"></td>
         <td>
           <select data-f="gender">
@@ -1121,7 +1104,6 @@
             <option value="Male" ${s.gender==='Male'?'selected':''}>Male</option>
           </select>
         </td>
-        <td><input data-f="birthDate" value="${escapeAttr(s.birthDate)}" placeholder="MM/DD/YYYY"></td>
         <td class="col-del"><button data-idx="${idx}" title="Remove">✕</button></td>
       </tr>
     `).join('');
@@ -1157,6 +1139,7 @@
 
   function resetModalShell(){
     document.getElementById('className').value = '';
+    document.getElementById('classGradeLevel').value = '';
     document.getElementById('pasteInput').value = '';
     document.getElementById('parseNote').textContent = '';
     clearModalError();
@@ -1181,6 +1164,7 @@
     document.getElementById('modalTitle').textContent = 'Edit roster — ' + (cls ? cls.name : '');
     document.getElementById('modalSub').textContent = 'Add, fix, or remove students — including nicknames. Saves to the shared sheet.';
     document.getElementById('classNameField').classList.add('hidden');
+    document.getElementById('classGradeLevel').value = (cls && cls.gradeLevel) || '';
     document.getElementById('saveClassBtn').textContent = 'Save changes';
     modalStudents = []; modalOriginalIds = new Set();
     renderRosterTable();
@@ -1205,6 +1189,7 @@
     document.getElementById('modalTitle').textContent = 'Replace roster — ' + (cls ? cls.name : '');
     document.getElementById('modalSub').textContent = 'This swaps out the whole roster. Import a new list, review it, then save.';
     document.getElementById('classNameField').classList.add('hidden');
+    document.getElementById('classGradeLevel').value = (cls && cls.gradeLevel) || '';
     document.getElementById('saveClassBtn').textContent = 'Replace roster';
     modalStudents = []; modalOriginalIds = new Set();
     renderRosterTable();
@@ -1226,7 +1211,8 @@
       if(modalStudents.length < 1){ showModalError('Add at least one student.'); return; }
       setSaving(true);
       try{
-        const res = await withRetry(() => api.createClass(name), 2, 900);
+        const gradeLevel = document.getElementById('classGradeLevel').value.trim();
+        const res = await withRetry(() => api.createClass(name, gradeLevel ? { gradeLevel } : {}), 2, 900);
         await saveStudentsBatched(res.id, modalStudents, (done, total) => setProgress('Saving ' + done + ' of ' + total + '…'));
         setProgress('');
         selectedClassIds.add(res.id);
@@ -1469,14 +1455,16 @@
     document.getElementById('cancelModalBtn').addEventListener('click', closeModal);
     document.getElementById('saveClassBtn').addEventListener('click', saveModal);
     document.getElementById('addRowBtn').addEventListener('click', () => {
-      modalStudents.push({ lastName:'', firstName:'', nickname:'', permId:'', grade:'', gender:'', birthDate:'' });
+      const gradeDefault = document.getElementById('classGradeLevel').value.trim();
+      modalStudents.push({ lastName:'', firstName:'', nickname:'', grade: gradeDefault, gender:'' });
       renderRosterTable();
     });
 
     document.getElementById('importPasteBtn').addEventListener('click', () => {
       const text = document.getElementById('pasteInput').value;
       const lines = text.split('\n');
-      const parsed = parseRosterLines(lines);
+      const gradeDefault = document.getElementById('classGradeLevel').value.trim();
+      const parsed = parseRosterLines(lines).map(s => ({ ...s, grade: s.grade || gradeDefault }));
       appendParsedStudents(parsed, 'pasted text');
       document.getElementById('pasteInput').value = '';
     });
