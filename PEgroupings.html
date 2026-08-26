@@ -1,0 +1,1511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Group Draw — Class Team Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  :root{
+    --paper:#F7F4EA; --paper-alt:#EFE9D6; --card:#FCFAF2;
+    --ink:#20291F; --ink-soft:#5B6459;
+    --teal:#2F6F6B; --teal-dark:#1F4F4C;
+    --marker:#E0762F; --marker-soft:#F2C79B;
+    --danger:#B3492F;
+    --chalk-bg:#182420; --chalk-bg-alt:#1F2E28; --chalk-line:#3A4B43; --chalk-white:#F3F1E4; --chalk-dim:#95AA9F;
+    --radius:12px;
+    --font-display:'Fraunces', serif; --font-body:'Inter', sans-serif; --font-mono:'JetBrains Mono', monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);font-family:var(--font-body);height:100%;}
+  body{background-image:radial-gradient(circle at 1px 1px, rgba(32,41,31,0.06) 1px, transparent 0);background-size:22px 22px;}
+  h1,h2,h3{font-family:var(--font-display);font-weight:600;margin:0;}
+  button{font-family:var(--font-body);cursor:pointer;}
+  .hidden{display:none !important;}
+  input,select,textarea{font-family:var(--font-body);}
+
+  .shared-banner{background:var(--marker-soft);color:#5C3210;font-size:12.5px;padding:8px 28px;text-align:center;font-weight:600;}
+  .status-banner{font-size:12.5px;padding:7px 28px;text-align:center;font-weight:600;}
+  .status-banner.warn{background:#F3D9C9;color:#7A3410;}
+  .status-banner.err{background:#F1C6BB;color:#7A2113;}
+  .status-banner.ok{background:#CFE3DD;color:#1F4F4C;}
+
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 28px;border-bottom:1px solid rgba(32,41,31,0.12);}
+  .brand{display:flex;align-items:baseline;gap:10px;}
+  .brand h1{font-size:22px;letter-spacing:-0.01em;}
+  .brand .eyebrow{font-family:var(--font-mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--teal-dark);background:var(--marker-soft);padding:3px 8px;border-radius:20px;}
+  .topbar-actions{display:flex;gap:10px;align-items:center;}
+
+  .btn{border:none;border-radius:9px;padding:10px 16px;font-size:14px;font-weight:600;transition:transform .12s ease, box-shadow .12s ease;}
+  .btn:active{transform:scale(0.97);}
+  .btn-primary{background:var(--teal);color:#fff;box-shadow:0 3px 0 var(--teal-dark);}
+  .btn-primary:hover{background:var(--teal-dark);}
+  .btn-primary:disabled{background:#B9C4BE;box-shadow:0 3px 0 #9AA69E;cursor:not-allowed;}
+  .btn-marker{background:var(--marker);color:#fff;box-shadow:0 3px 0 #A8551D;}
+  .btn-marker:hover{background:#C6621F;}
+  .btn-ghost{background:transparent;color:var(--ink);border:1.5px solid rgba(32,41,31,0.25);box-shadow:none;}
+  .btn-ghost:hover{border-color:var(--ink);}
+  .btn-ghost:disabled{opacity:0.45;cursor:not-allowed;}
+  .btn-danger{background:transparent;color:var(--danger);border:1.5px solid rgba(179,73,47,0.4);box-shadow:none;}
+  .btn-danger:hover{background:rgba(179,73,47,0.08);}
+  .btn-sm{padding:6px 11px;font-size:12.5px;border-radius:7px;}
+  .icon-btn{background:none;border:none;font-size:14px;padding:3px 6px;border-radius:6px;color:var(--ink-soft);}
+  .icon-btn:hover{background:rgba(32,41,31,0.08);color:var(--ink);}
+  .gear-btn{font-size:18px;background:none;border:none;color:var(--ink-soft);padding:4px 6px;border-radius:8px;}
+  .gear-btn:hover{background:rgba(32,41,31,0.08);color:var(--ink);}
+
+  .layout{display:grid;grid-template-columns:280px 1fr;min-height:calc(100vh - 66px);}
+  .sidebar{border-right:1px solid rgba(32,41,31,0.12);padding:22px 18px;background:var(--paper-alt);}
+  .sidebar h2{font-size:13px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.1em;color:var(--ink-soft);margin-bottom:14px;}
+  .class-item{padding:10px 10px;border-radius:9px;margin-bottom:6px;border:1.5px solid transparent;}
+  .class-item:hover{background:rgba(47,111,107,0.08);}
+  .class-item.selected{background:rgba(47,111,107,0.14);border-color:var(--teal);}
+  .class-item-top{display:flex;align-items:flex-start;gap:9px;cursor:pointer;}
+  .class-item input[type=checkbox]{margin-top:3px;accent-color:var(--teal);}
+  .class-item .meta{display:flex;flex-direction:column;flex:1;}
+  .class-item .cname{font-weight:600;font-size:14.5px;}
+  .class-item .ccount{font-family:var(--font-mono);font-size:11.5px;color:var(--ink-soft);}
+  .class-item-icons{display:flex;gap:2px;margin-top:6px;margin-left:24px;}
+  .meta-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;margin-left:24px;}
+  .meta-tag{font-family:var(--font-mono);font-size:9.5px;color:var(--teal-dark);background:rgba(47,111,107,0.1);padding:2px 6px;border-radius:8px;}
+  .empty-note{font-size:13px;color:var(--ink-soft);line-height:1.5;margin-bottom:14px;}
+  .newclass-btn{width:100%;margin-top:6px;}
+  .sidebar-foot{font-size:11.5px;color:var(--ink-soft);margin-top:18px;line-height:1.5;}
+
+  .workspace{padding:28px 34px;max-width:1050px;}
+  .section{margin-bottom:34px;}
+  .section-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;gap:12px;flex-wrap:wrap;}
+  .section-head h2{font-size:19px;}
+  .section-sub{color:var(--ink-soft);font-size:13.5px;margin-top:2px;}
+  .head-actions{display:flex;gap:8px;flex-wrap:wrap;}
+
+  .roster-chip-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px;}
+  .roster-chip{background:var(--card);border:1px solid rgba(32,41,31,0.14);padding:6px 12px;border-radius:20px;font-size:13px;}
+  .grade-badge{font-family:var(--font-mono);font-size:10px;color:var(--ink-soft);background:var(--paper-alt);padding:1px 5px;border-radius:8px;margin-left:5px;}
+  .grade-badge.on-chalk{background:rgba(243,241,228,0.08);color:var(--chalk-dim);}
+  .roster-count{font-family:var(--font-mono);font-weight:600;color:var(--teal-dark);}
+
+  .config-grid{display:grid;grid-template-columns:repeat(auto-fit, minmax(230px, 1fr));gap:18px;}
+  .field{background:var(--card);border:1px solid rgba(32,41,31,0.12);border-radius:var(--radius);padding:16px 18px;}
+  .field label{display:block;font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);margin-bottom:10px;}
+  .toggle-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;}
+  .toggle-opt{flex:1;min-width:90px;text-align:center;padding:8px 6px;border-radius:8px;border:1.5px solid rgba(32,41,31,0.18);font-size:12.5px;font-weight:600;cursor:pointer;}
+  .toggle-opt.active{background:var(--teal);color:#fff;border-color:var(--teal);}
+  .num-input{width:100%;padding:9px 10px;border-radius:8px;border:1.5px solid rgba(32,41,31,0.2);font-size:15px;font-weight:600;}
+  .keepapart-row{display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap;}
+  .keepapart-row select{flex:1 1 110px;min-width:0;padding:7px 8px;border-radius:7px;border:1.5px solid rgba(32,41,31,0.2);font-size:13px;}
+  .keepapart-row button{flex-shrink:0;}
+  .pair-list{display:flex;flex-direction:column;gap:6px;margin-top:8px;max-height:110px;overflow-y:auto;}
+  .pair-pill{display:flex;justify-content:space-between;align-items:center;background:var(--paper);border-radius:7px;padding:5px 9px;font-size:12.5px;}
+  .pair-pill button{background:none;border:none;color:var(--danger);font-size:13px;}
+
+  .generate-row{display:flex;justify-content:flex-end;margin-top:16px;gap:10px;}
+
+  .teams-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(230px, 1fr));gap:22px;margin-top:18px;}
+  .team-card{position:relative;background:var(--card);border-radius:6px;padding:18px 18px 14px;box-shadow:0 6px 14px rgba(32,41,31,0.14);transition:box-shadow .15s ease, outline .1s ease;}
+  .team-card:nth-child(3n){transform:rotate(-0.8deg);}
+  .team-card:nth-child(3n+1){transform:rotate(0.6deg);}
+  .team-card:nth-child(3n+2){transform:rotate(-0.3deg);}
+  .team-card::before{content:'';position:absolute;top:-7px;left:50%;transform:translateX(-50%);width:13px;height:13px;border-radius:50%;background:var(--marker);box-shadow:0 2px 3px rgba(0,0,0,0.25);}
+  .team-card.drag-over{outline:2.5px dashed var(--teal);outline-offset:3px;box-shadow:0 10px 20px rgba(32,41,31,0.22);}
+  .team-card-head{display:flex;justify-content:space-between;align-items:center;border-bottom:2px dashed rgba(32,41,31,0.2);padding-bottom:8px;margin-bottom:10px;}
+  .team-name-input{font-family:var(--font-display);font-size:17px;font-weight:600;border:none;background:transparent;width:100%;color:var(--ink);}
+  .team-name-input:focus{outline:none;border-bottom:1px solid var(--teal);}
+  .team-count{font-family:var(--font-mono);font-size:11px;color:var(--ink-soft);white-space:nowrap;margin-left:8px;}
+  .team-student{display:flex;justify-content:space-between;align-items:center;gap:6px;padding:5px 0;font-size:14px;border-bottom:1px solid rgba(32,41,31,0.06);cursor:grab;}
+  .team-student:active{cursor:grabbing;}
+  .team-student:last-child{border-bottom:none;}
+  .team-student.dragging{opacity:0.35;}
+  .team-student .sname{display:flex;align-items:center;gap:7px;}
+  .drag-handle{color:var(--ink-soft);font-size:13px;user-select:none;}
+  .team-student select{font-size:11px;border:none;background:var(--paper-alt);border-radius:5px;padding:2px 4px;color:var(--ink-soft);max-width:80px;}
+  .violation-note{margin-top:10px;font-size:12.5px;color:var(--danger);background:rgba(179,73,47,0.08);padding:8px 10px;border-radius:7px;}
+
+  .modal-backdrop{position:fixed;inset:0;background:rgba(24,36,32,0.55);display:flex;align-items:center;justify-content:center;z-index:50;padding:24px;}
+  .modal{background:var(--paper);border-radius:16px;max-width:760px;width:100%;max-height:90vh;overflow-y:auto;padding:26px 28px;box-shadow:0 20px 50px rgba(0,0,0,0.3);}
+  .modal.narrow{max-width:460px;}
+  .modal h2{font-size:20px;margin-bottom:4px;}
+  .modal .modal-sub{color:var(--ink-soft);font-size:13.5px;margin-bottom:18px;}
+  .modal label{display:block;font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);margin:14px 0 7px;}
+  .modal input[type=text],.modal input[type=url]{width:100%;padding:10px 12px;border-radius:8px;border:1.5px solid rgba(32,41,31,0.2);font-size:15px;}
+  .modal textarea{width:100%;min-height:90px;padding:10px 12px;border-radius:8px;border:1.5px solid rgba(32,41,31,0.2);font-size:13px;font-family:var(--font-mono);line-height:1.6;resize:vertical;}
+  .dropzone{border:2px dashed rgba(32,41,31,0.28);border-radius:10px;padding:16px;text-align:center;color:var(--ink-soft);font-size:13px;cursor:pointer;}
+  .dropzone:hover{border-color:var(--teal);color:var(--teal-dark);}
+  .dropzone.busy{opacity:0.6;pointer-events:none;}
+  .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px;}
+  .modal-err{color:var(--danger);font-size:13px;margin-top:8px;}
+  .parse-note{font-size:12px;color:var(--ink-soft);margin-top:6px;line-height:1.5;}
+  .bulk-block{display:flex;align-items:flex-start;gap:10px;padding:12px;border:1px solid rgba(32,41,31,0.14);border-radius:10px;margin-top:10px;background:var(--card);}
+  .bulk-block input[type=checkbox]{margin-top:4px;accent-color:var(--teal);}
+  .bulk-block-body{flex:1;}
+  .bulk-block-name{width:100%;padding:7px 9px;border-radius:7px;border:1.5px solid rgba(32,41,31,0.2);font-size:14px;font-weight:600;font-family:var(--font-display);margin-bottom:6px;}
+  .bulk-block-meta{display:flex;flex-wrap:wrap;gap:5px;}
+
+  .roster-table-wrap{overflow-x:auto;border:1px solid rgba(32,41,31,0.14);border-radius:10px;margin-top:14px;}
+  table.roster-table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:640px;}
+  table.roster-table th{text-align:left;font-family:var(--font-mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-soft);padding:8px 6px;background:var(--paper-alt);position:sticky;top:0;}
+  table.roster-table td{padding:4px 6px;border-top:1px solid rgba(32,41,31,0.08);}
+  table.roster-table input, table.roster-table select{width:100%;border:1px solid rgba(32,41,31,0.15);border-radius:5px;padding:5px 6px;font-size:12.5px;}
+  table.roster-table .col-grade input{width:44px;}
+  table.roster-table .col-del button{background:none;border:none;color:var(--danger);font-size:14px;padding:2px 6px;}
+  .add-row-btn{margin-top:10px;}
+  .table-toolbar{display:flex;justify-content:space-between;align-items:center;margin-top:16px;}
+  .table-count{font-family:var(--font-mono);font-size:12px;color:var(--ink-soft);}
+
+  .present{position:fixed;inset:0;background:var(--chalk-bg);background-image:radial-gradient(ellipse at top, var(--chalk-bg-alt), var(--chalk-bg));z-index:100;display:flex;flex-direction:column;color:var(--chalk-white);}
+  .present-top{display:flex;justify-content:space-between;align-items:center;padding:22px 34px 6px;}
+  .present-top h1{font-family:var(--font-display);font-size:22px;color:var(--chalk-white);letter-spacing:0.01em;}
+  .present-actions{display:flex;gap:10px;}
+  .present-actions .btn{box-shadow:none;}
+  .present-actions .btn-ghost{color:var(--chalk-white);border-color:rgba(243,241,228,0.35);}
+  .present-actions .btn-ghost:hover{border-color:var(--chalk-white);background:rgba(243,241,228,0.06);}
+  .present-actions .btn-marker{background:var(--marker);}
+  .present-grid{flex:1;display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:26px;padding:20px 40px 40px;overflow-y:auto;align-content:start;}
+  .chalk-card{border:1.5px solid var(--chalk-line);border-radius:10px;padding:18px 20px;background:rgba(243,241,228,0.03);}
+  .chalk-card h3{font-family:var(--font-display);font-size:21px;color:var(--chalk-white);border-bottom:1.5px dashed var(--chalk-line);padding-bottom:9px;margin-bottom:11px;display:flex;justify-content:space-between;align-items:baseline;}
+  .chalk-card h3 .n{font-family:var(--font-mono);font-size:12px;color:var(--chalk-dim);}
+  .chalk-card ul{list-style:none;margin:0;padding:0;}
+  .chalk-card li{font-size:17px;padding:6px 0;color:var(--chalk-white);}
+  .chalk-card li::before{content:'– ';color:var(--chalk-dim);}
+
+  .spinner-note{font-size:12.5px;color:var(--ink-soft);}
+
+  @media (max-width: 760px){
+    .layout{grid-template-columns:1fr;}
+    .sidebar{border-right:none;border-bottom:1px solid rgba(32,41,31,0.12);}
+  }
+</style>
+</head>
+<body>
+
+<div class="shared-banner">🔗 Class lists live in a shared Google Sheet — everyone with access to your district's copy sees the same data.</div>
+<div class="status-banner hidden" id="statusBanner"></div>
+
+<div class="topbar">
+  <div class="brand">
+    <h1>Group Draw</h1>
+    <span class="eyebrow">class team generator</span>
+  </div>
+  <div class="topbar-actions">
+    <button class="gear-btn" id="settingsBtn" title="Settings">⚙</button>
+    <button class="btn btn-ghost btn-sm" id="startNewBtn">🏠 Start new groupings</button>
+    <button class="btn btn-primary" id="presentBtn" disabled>Present teams →</button>
+  </div>
+</div>
+
+<div class="layout">
+  <aside class="sidebar">
+    <h2>Shared classes</h2>
+    <div id="classListEl"></div>
+    <button class="btn btn-ghost newclass-btn" id="newClassBtn">+ New class</button>
+    <button class="btn btn-ghost newclass-btn" id="bulkImportBtn">+ Import spreadsheet (multi-class)</button>
+    <div class="sidebar-foot">Add, edit, or replace a roster and every teacher using this sheet sees it.</div>
+  </aside>
+
+  <main class="workspace">
+
+    <section class="section" id="rosterSection">
+      <div class="section-head">
+        <div>
+          <h2>Roster</h2>
+          <div class="section-sub" id="rosterSub">Select one or more classes from the left to build a roster.</div>
+        </div>
+      </div>
+      <div id="rosterBody"></div>
+    </section>
+
+    <section class="section hidden" id="configSection">
+      <div class="section-head">
+        <div>
+          <h2>Set up groups</h2>
+          <div class="section-sub">Choose sizing, naming, and who to keep apart.</div>
+        </div>
+      </div>
+      <div class="config-grid">
+        <div class="field">
+          <label>Group size by</label>
+          <div class="toggle-row" id="sizeModeToggle">
+            <div class="toggle-opt active" data-mode="count">Number of teams</div>
+            <div class="toggle-opt" data-mode="size">Students per team</div>
+          </div>
+          <input type="number" class="num-input" id="sizeValue" min="1" value="4">
+        </div>
+        <div class="field">
+          <label>Team names</label>
+          <div class="toggle-row" id="namingModeToggle">
+            <div class="toggle-opt active" data-naming="numbers">Numbers</div>
+            <div class="toggle-opt" data-naming="colors">Colors</div>
+            <div class="toggle-opt" data-naming="fun">Fun names</div>
+            <div class="toggle-opt" data-naming="teacher">I'll name them</div>
+          </div>
+          <div class="parse-note">Names are editable on each card no matter what you pick.</div>
+        </div>
+        <div class="field">
+          <label>Keep these students apart (optional)</label>
+          <div class="keepapart-row">
+            <select id="pairA"></select>
+            <select id="pairB"></select>
+            <button class="btn btn-ghost btn-sm" id="addPairBtn">Add</button>
+          </div>
+          <div class="pair-list" id="pairList"></div>
+        </div>
+      </div>
+      <div class="generate-row">
+        <button class="btn btn-marker" id="generateBtn">Draw teams 🎲</button>
+      </div>
+    </section>
+
+    <section class="section hidden" id="teamsSection">
+      <div class="section-head">
+        <div>
+          <h2>Teams</h2>
+          <div class="section-sub">Drag a name onto another card to move them, or use the small dropdown.</div>
+        </div>
+        <div class="head-actions">
+          <button class="btn btn-ghost btn-sm" id="shuffleAgainBtn">Shuffle again</button>
+          <button class="btn btn-ghost btn-sm" id="exportExcelBtn">⬇ Excel</button>
+          <button class="btn btn-ghost btn-sm" id="exportPdfBtn">⬇ PDF</button>
+        </div>
+      </div>
+      <div id="violationNote"></div>
+      <div class="teams-grid" id="teamsGrid"></div>
+    </section>
+
+  </main>
+</div>
+
+<!-- Roster modal: create / edit / replace -->
+<div class="modal-backdrop hidden" id="rosterModal">
+  <div class="modal">
+    <h2 id="modalTitle">Add a class</h2>
+    <div class="modal-sub" id="modalSub">For roster data, use "+ Import spreadsheet" from the sidebar instead — this is for a quick manual class or small fixes.</div>
+
+    <div id="classNameField">
+      <label>Class name</label>
+      <input type="text" id="className" placeholder="e.g. Period 3 — Biology">
+    </div>
+
+    <label>Import students (optional)</label>
+    <textarea id="pasteInput" placeholder="Paste roster lines here, one student per line (e.g. Last, First)…"></textarea>
+    <button class="btn btn-ghost btn-sm" id="importPasteBtn">Import pasted lines</button>
+    <div class="parse-note" id="parseNote"></div>
+    <div class="parse-note" id="saveProgress"></div>
+
+    <div class="table-toolbar">
+      <span class="table-count" id="tableCount">0 students</span>
+      <button class="btn btn-ghost btn-sm add-row-btn" id="addRowBtn">+ Add student</button>
+    </div>
+    <div class="roster-table-wrap">
+      <table class="roster-table">
+        <thead>
+          <tr>
+            <th>Last name</th><th>First name</th><th>Nickname</th><th>Perm ID</th><th class="col-grade">Grade</th><th>Gender</th><th>Birth date</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="rosterTableBody"></tbody>
+      </table>
+    </div>
+
+    <div class="modal-err hidden" id="modalErr"></div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="cancelModalBtn">Cancel</button>
+      <button class="btn btn-primary" id="saveClassBtn">Save class</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bulk import modal: multiple classes from one Grade Book Grid export -->
+<div class="modal-backdrop hidden" id="bulkModal">
+  <div class="modal">
+    <h2>Import spreadsheet</h2>
+    <div class="modal-sub">Upload a Grade Book Grid export (.xls/.xlsx). Every class period in the file is detected automatically, with teacher, grade, and period pulled in — pick which ones to add.</div>
+
+    <div class="dropzone" id="bulkDropzone">
+      <div id="bulkDropzoneText">Click to choose a .xls or .xlsx file, or drag one here.</div>
+    </div>
+    <input type="file" id="bulkFileInput" accept=".xls,.xlsx" class="hidden">
+    <div class="parse-note" id="bulkParseNote"></div>
+
+    <div id="bulkBlocksList"></div>
+
+    <div class="modal-err hidden" id="bulkErr"></div>
+    <div class="parse-note" id="bulkProgress"></div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="bulkCancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="bulkSaveBtn" disabled>Import selected classes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div class="modal-backdrop hidden" id="settingsModal">
+  <div class="modal narrow">
+    <h2>Settings</h2>
+    <div class="modal-sub">Paste the Apps Script Web App URL from your Google Sheet deployment. This is shared — one teacher sets it up, everyone else sees it automatically.</div>
+    <label>Apps Script Web App URL</label>
+    <input type="url" id="apiUrlInput" placeholder="https://script.google.com/macros/s/.../exec">
+    <div class="modal-err hidden" id="settingsErr"></div>
+    <div class="parse-note" id="settingsStatus"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" id="testConnBtn">Test connection</button>
+      <button class="btn btn-ghost" id="closeSettingsBtn">Close</button>
+      <button class="btn btn-primary" id="saveSettingsBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Present view -->
+<div class="present hidden" id="presentView">
+  <div class="present-top">
+    <h1 id="presentTitle">Teams</h1>
+    <div class="present-actions">
+      <button class="btn btn-marker" id="presentShuffleBtn">Shuffle again</button>
+      <button class="btn btn-ghost" id="presentPdfBtn">🖨 Save as PDF</button>
+      <button class="btn btn-ghost" id="fullscreenBtn">Fullscreen</button>
+      <button class="btn btn-ghost" id="exitPresentBtn">Exit</button>
+    </div>
+  </div>
+  <div class="present-grid" id="presentGrid"></div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- local shared config helpers (settings + session only — NOT student data) ----------------
+   * Inside Claude's artifact viewer, window.storage lets Settings/session state sync across
+   * everyone using this artifact. Hosted as a plain webpage elsewhere, that API doesn't exist —
+   * this falls back to localStorage instead, so each browser at least remembers its own
+   * settings between visits (just not shared automatically with other teachers' browsers).
+   */
+  async function storeGet(key, shared){
+    try{
+      if(window.storage){
+        const res = await window.storage.get(key, !!shared);
+        return res ? JSON.parse(res.value) : null;
+      }
+    }catch(e){ /* fall through to localStorage */ }
+    try{
+      const raw = localStorage.getItem('groupdraw:' + key);
+      return raw ? JSON.parse(raw) : null;
+    }catch(e){ return null; }
+  }
+  async function storeSet(key, val, shared){
+    try{
+      if(window.storage){
+        await window.storage.set(key, JSON.stringify(val), !!shared);
+        return true;
+      }
+    }catch(e){ /* fall through to localStorage */ }
+    try{ localStorage.setItem('groupdraw:' + key, JSON.stringify(val)); return true; }
+    catch(e){ console.error('storage set failed', e); return false; }
+  }
+
+  /* ---------------- Apps Script API layer (JSONP — see note below) ----------------
+   * Google Apps Script Web Apps don't reliably support CORS for fetch()/XHR
+   * cross-site calls. JSONP (loading the response via a <script> tag instead
+   * of fetch) is the standard, reliable workaround, and it still respects the
+   * deployment's own "who has access" login restriction.
+   */
+  let API_URL = null;
+
+  function jsonp(url, params, timeoutMs){
+    return new Promise((resolve, reject) => {
+      const cbName = 'gd_cb_' + Date.now() + '_' + Math.floor(Math.random()*1e6);
+      const script = document.createElement('script');
+      let done = false;
+      function cleanup(){
+        done = true;
+        clearTimeout(timer);
+        try{ delete window[cbName]; }catch(e){ window[cbName] = undefined; }
+        if(script.parentNode) script.parentNode.removeChild(script);
+      }
+      window[cbName] = function(data){ if(done) return; cleanup(); resolve(data); };
+      script.onerror = function(){ if(done) return; cleanup(); reject(new Error('Could not reach the Apps Script URL (check it\'s correct, and that you\'re online).')); };
+      const timer = setTimeout(() => {
+        if(done) return; cleanup();
+        reject(new Error('Request timed out — if this keeps happening, make sure you\'re signed into your school Google account in this browser.'));
+      }, timeoutMs || 20000);
+      const qs = new URLSearchParams(params);
+      qs.set('callback', cbName);
+      script.src = url + (url.indexOf('?') === -1 ? '?' : '&') + qs.toString();
+      document.head.appendChild(script);
+    });
+  }
+
+  async function callApi(action, payload){
+    if(!API_URL) throw new Error('No Apps Script URL set yet — open Settings (⚙) first.');
+    const data = await jsonp(API_URL, { action, payload: JSON.stringify(payload || {}) });
+    if(!data || typeof data !== 'object') throw new Error('Got an unexpected response from the Apps Script.');
+    if(!data.success) throw new Error(data.error || 'Request failed.');
+    return data.data;
+  }
+
+  const api = {
+    listClasses: () => callApi('listClasses', {}),
+    getRoster: (classId) => callApi('getRoster', { classId }),
+    createClass: (name, meta) => callApi('createClass', { name, meta }),
+    clearRoster: (classId) => callApi('clearRoster', { classId }),
+    addStudent: (classId, student) => callApi('addStudent', { classId, student }),
+    addStudents: (classId, students) => callApi('addStudents', { classId, students }),
+    updateStudent: (classId, studentId, student) => callApi('updateStudent', { classId, studentId, student }),
+    deleteStudent: (classId, studentId) => callApi('deleteStudent', { classId, studentId }),
+    deleteClass: (classId) => callApi('deleteClass', { classId })
+  };
+
+  // Small helpers used when saving many students in a row: batching cuts the
+  // number of requests way down, a short pause between batches avoids
+  // tripping Apps Script's rate limiting, and retrying once or twice papers
+  // over an occasional slow/dropped request rather than failing the whole import.
+  function sleep(ms){ return new Promise(resolve => setTimeout(resolve, ms)); }
+  function chunkArray(arr, size){
+    const out = [];
+    for(let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+    return out;
+  }
+  async function withRetry(fn, retries, delayMs){
+    let lastErr;
+    for(let attempt = 0; attempt <= retries; attempt++){
+      try{ return await fn(); }
+      catch(err){
+        lastErr = err;
+        if(attempt < retries) await sleep(delayMs * (attempt + 1));
+      }
+    }
+    throw lastErr;
+  }
+  const STUDENT_BATCH_SIZE = 6;
+  function cleanStudent(s){
+    return { lastName:s.lastName||'', firstName:s.firstName||'', nickname:s.nickname||'', permId:s.permId||'', grade:s.grade||'', gender:s.gender||'', birthDate:s.birthDate||'' };
+  }
+  async function saveStudentsBatched(classId, students, onProgress){
+    const chunks = chunkArray(students, STUDENT_BATCH_SIZE);
+    let done = 0;
+    for(let i = 0; i < chunks.length; i++){
+      await withRetry(() => api.addStudents(classId, chunks[i].map(cleanStudent)), 2, 900);
+      done += chunks[i].length;
+      if(onProgress) onProgress(done, students.length);
+      if(i < chunks.length - 1) await sleep(400);
+    }
+  }
+
+  /* ---------------- name banks for team naming ---------------- */
+  const COLOR_NAMES = ['Crimson','Cobalt','Amber','Emerald','Violet','Coral','Indigo','Teal','Magenta','Slate','Gold','Silver','Scarlet','Azure','Jade','Rust','Plum','Mint','Charcoal','Rose'];
+  const FUN_NAMES = ['Falcons','Wolves','Comets','Tigers','Otters','Ravens','Sharks','Foxes','Panthers','Eagles','Dragons','Phoenixes','Cobras','Lions','Bears','Hawks','Wolverines','Jaguars','Cheetahs','Griffins','Titans','Vipers','Storm Chasers','Thunderbolts','Blazers','Novas','Rockets','Pioneers','Voyagers','Explorers'];
+
+  /* ---------------- state ---------------- */
+  let classIndex = [];
+  let selectedClassIds = new Set();
+  let roster = [];
+  let groupMode = 'count';
+  let teamNamingMode = 'numbers';
+  let keepApartPairs = [];
+  let teams = null;
+  let lastViolations = 0;
+  let lastNamingMode = null;
+  let lastNumTeams = null;
+  let draggedFrom = null;
+
+  let modalMode = null;        // 'create' | 'edit' | 'replace'
+  let modalClassId = null;
+  let modalStudents = [];      // [{id?, lastName, firstName, nickname, permId, grade, gender, birthDate}]
+  let modalOriginalIds = new Set();
+  let bulkBlocks = [];         // detected classes from a Grade Book Grid upload
+
+  /* ---------------- init ---------------- */
+  document.addEventListener('DOMContentLoaded', init);
+
+  async function init(){
+    API_URL = await storeGet('api-url', true);
+    document.getElementById('apiUrlInput').value = API_URL || '';
+
+    const ws = await storeGet('workspace-state', true);
+    bindEvents();
+
+    if(ws){
+      selectedClassIds = new Set(ws.selectedClassIds || []);
+      groupMode = ws.groupMode || 'count';
+      teamNamingMode = ws.teamNamingMode || 'numbers';
+      keepApartPairs = ws.keepApartPairs || [];
+      setToggleUI('sizeModeToggle', 'data-mode', groupMode);
+      setToggleUI('namingModeToggle', 'data-naming', teamNamingMode);
+      if(ws.sizeValue) document.getElementById('sizeValue').value = ws.sizeValue;
+    }
+
+    if(!API_URL){
+      showStatus('warn', 'No Google Sheet connected yet. Click ⚙ Settings to paste your Apps Script URL.');
+      return;
+    }
+
+    await refreshClassList();
+
+    if(selectedClassIds.size){
+      await rebuildRoster(false);
+      if(ws && ws.teams && ws.teams.length){
+        teams = ws.teams;
+        lastNamingMode = teamNamingMode;
+        lastNumTeams = teams.length;
+      }
+      renderConfigVisibility();
+      renderTeamsSection();
+      updatePresentButton();
+    }
+  }
+
+  function setToggleUI(containerId, attr, value){
+    document.getElementById(containerId).querySelectorAll('.toggle-opt').forEach(opt => {
+      opt.classList.toggle('active', opt.getAttribute(attr) === value);
+    });
+  }
+
+  function showStatus(kind, msg){
+    const el = document.getElementById('statusBanner');
+    el.className = 'status-banner ' + kind;
+    el.textContent = msg;
+  }
+  function clearStatus(){
+    document.getElementById('statusBanner').className = 'status-banner hidden';
+  }
+
+  async function refreshClassList(){
+    try{
+      classIndex = await api.listClasses();
+      selectedClassIds = new Set(Array.from(selectedClassIds).filter(id => classIndex.some(c => c.id === id)));
+      clearStatus();
+      renderClassList();
+    }catch(err){
+      showStatus('err', 'Could not load classes: ' + err.message);
+      classIndex = [];
+      renderClassList();
+    }
+  }
+
+  /* ---------------- rendering: sidebar ---------------- */
+  function renderClassList(){
+    const el = document.getElementById('classListEl');
+    if(!API_URL){
+      el.innerHTML = '<div class="empty-note">Connect a Google Sheet in Settings (⚙) to see classes here.</div>';
+      return;
+    }
+    if(classIndex.length === 0){
+      el.innerHTML = '<div class="empty-note">No classes saved yet. Add one to get started.</div>';
+      return;
+    }
+    el.innerHTML = '';
+    classIndex.forEach(c => {
+      const row = document.createElement('div');
+      row.className = 'class-item' + (selectedClassIds.has(c.id) ? ' selected' : '');
+      row.innerHTML = `
+        <div class="class-item-top">
+          <input type="checkbox" ${selectedClassIds.has(c.id) ? 'checked' : ''} data-id="${c.id}">
+          <div class="meta">
+            <span class="cname">${escapeHtml(c.name)}</span>
+            <span class="ccount">${c.count} student${c.count===1?'':'s'}</span>
+          </div>
+        </div>
+        <div class="class-item-icons">
+          <button class="icon-btn" data-act="edit" data-id="${c.id}" title="Edit roster">📋 Edit</button>
+          <button class="icon-btn" data-act="replace" data-id="${c.id}" title="Replace roster">🔁 Replace</button>
+          <button class="icon-btn" data-act="delete" data-id="${c.id}" title="Delete class">🗑</button>
+        </div>
+        ${metaTagsRow(c)}
+      `;
+      row.querySelector('input').addEventListener('change', (e) => toggleClassSelection(c.id, e.target.checked));
+      row.querySelector('.class-item-top').addEventListener('click', (e) => {
+        if(e.target.tagName === 'INPUT') return;
+        const cb = row.querySelector('input');
+        cb.checked = !cb.checked;
+        toggleClassSelection(c.id, cb.checked);
+      });
+      row.querySelectorAll('.icon-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const act = btn.dataset.act, id = btn.dataset.id;
+          if(act === 'edit') openEditModal(id);
+          else if(act === 'replace') openReplaceModal(id);
+          else if(act === 'delete') deleteClass(id);
+        });
+      });
+      el.appendChild(row);
+    });
+  }
+
+  function metaTagsRow(c){
+    const tags = [];
+    if(c.teacher) tags.push(c.teacher);
+    if(c.gradeLevel) tags.push('Gr ' + c.gradeLevel);
+    if(c.period) tags.push('Period ' + c.period);
+    if(c.subject) tags.push(c.subject);
+    if(!tags.length) return '';
+    return `<div class="meta-tags">${tags.map(t => `<span class="meta-tag">${escapeHtml(t)}</span>`).join('')}</div>`;
+  }
+
+  /* ---------------- start new groupings (reset the shared workspace) ---------------- */
+  async function startNewGroupings(){
+    if(!confirm('Start a new grouping? This clears the current class selection and team draw for everyone using this sheet — saved classes and rosters are untouched.')) return;
+    selectedClassIds = new Set();
+    roster = [];
+    teams = null;
+    keepApartPairs = [];
+    lastNamingMode = null;
+    lastNumTeams = null;
+    groupMode = 'count';
+    teamNamingMode = 'numbers';
+    document.getElementById('sizeValue').value = 4;
+    setToggleUI('sizeModeToggle', 'data-mode', 'count');
+    setToggleUI('namingModeToggle', 'data-naming', 'numbers');
+    renderClassList();
+    renderRoster();
+    renderConfigVisibility();
+    renderTeamsSection();
+    updatePresentButton();
+    await saveWorkspaceState();
+  }
+
+  async function toggleClassSelection(id, checked){
+    if(checked) selectedClassIds.add(id); else selectedClassIds.delete(id);
+    renderClassList();
+    await rebuildRoster(true);
+    await saveWorkspaceState();
+  }
+
+  async function deleteClass(id){
+    if(!confirm('Delete this class for everyone using this sheet? This cannot be undone.')) return;
+    try{
+      await api.deleteClass(id);
+      selectedClassIds.delete(id);
+      await refreshClassList();
+      await rebuildRoster(true);
+      await saveWorkspaceState();
+    }catch(err){ showStatus('err', 'Could not delete class: ' + err.message); }
+  }
+
+  /* ---------------- roster building (from API) ---------------- */
+  async function rebuildRoster(resetDownstream){
+    roster = [];
+    for(const id of selectedClassIds){
+      try{
+        const cls = await api.getRoster(id);
+        (cls.students || []).forEach(s => {
+          const display = (s.nickname && s.nickname.trim()) ? s.nickname.trim() : ((s.firstName||'') + ' ' + (s.lastName||'')).trim();
+          roster.push({ id: id + '_' + s.id, rawId: s.id, classId: id, name: display || '(unnamed)', raw: s });
+        });
+      }catch(err){
+        showStatus('err', 'Could not load a roster: ' + err.message);
+      }
+    }
+    if(resetDownstream){
+      teams = null; keepApartPairs = []; lastNamingMode = null; lastNumTeams = null;
+    }
+    renderRoster();
+    renderConfigVisibility();
+    renderTeamsSection();
+    updatePresentButton();
+  }
+
+  function renderRoster(){
+    const sub = document.getElementById('rosterSub');
+    const body = document.getElementById('rosterBody');
+    if(roster.length === 0){
+      sub.textContent = 'Select one or more classes from the left to build a roster.';
+      body.innerHTML = '';
+      return;
+    }
+    sub.innerHTML = `<span class="roster-count">${roster.length}</span> student${roster.length===1?'':'s'} across ${selectedClassIds.size} class${selectedClassIds.size===1?'':'es'}`;
+    body.innerHTML = '<div class="roster-chip-row">' + roster.map(s => `<span class="roster-chip">${escapeHtml(s.name)}${gradeBadge(s)}</span>`).join('') + '</div>';
+  }
+
+  function renderConfigVisibility(){
+    document.getElementById('configSection').classList.toggle('hidden', roster.length < 2);
+    populatePairSelects();
+    renderPairList();
+  }
+
+  /* ---------------- group config UI ---------------- */
+  function bindConfigEvents(){
+    document.querySelectorAll('#sizeModeToggle .toggle-opt').forEach(opt => {
+      opt.addEventListener('click', () => {
+        document.querySelectorAll('#sizeModeToggle .toggle-opt').forEach(o => o.classList.remove('active'));
+        opt.classList.add('active');
+        groupMode = opt.dataset.mode;
+        saveWorkspaceState();
+      });
+    });
+    document.querySelectorAll('#namingModeToggle .toggle-opt').forEach(opt => {
+      opt.addEventListener('click', () => {
+        document.querySelectorAll('#namingModeToggle .toggle-opt').forEach(o => o.classList.remove('active'));
+        opt.classList.add('active');
+        teamNamingMode = opt.dataset.naming;
+        saveWorkspaceState();
+      });
+    });
+    document.getElementById('addPairBtn').addEventListener('click', () => {
+      const aSel = document.getElementById('pairA'), bSel = document.getElementById('pairB');
+      const a = aSel.value, b = bSel.value;
+      if(!a || !b || a === b) return;
+      const exists = keepApartPairs.some(([x,y]) => (x===a&&y===b)||(x===b&&y===a));
+      if(!exists) keepApartPairs.push([a,b]);
+      aSel.value = ''; bSel.value = '';
+      renderPairList();
+      saveWorkspaceState();
+    });
+    document.getElementById('generateBtn').addEventListener('click', generateTeams);
+  }
+
+  function populatePairSelects(){
+    const a = document.getElementById('pairA'), b = document.getElementById('pairB');
+    const opts = roster.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+    a.innerHTML = '<option value="">Student A…</option>' + opts;
+    b.innerHTML = '<option value="">Student B…</option>' + opts;
+  }
+
+  function renderPairList(){
+    const el = document.getElementById('pairList');
+    if(keepApartPairs.length === 0){ el.innerHTML = ''; return; }
+    el.innerHTML = keepApartPairs.map(([a,b], i) => {
+      const na = roster.find(s => s.id === a), nb = roster.find(s => s.id === b);
+      return `<div class="pair-pill"><span>${escapeHtml(na?na.name:'?')} ↔ ${escapeHtml(nb?nb.name:'?')}</span><button data-i="${i}">✕</button></div>`;
+    }).join('');
+    el.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        keepApartPairs.splice(parseInt(btn.dataset.i), 1);
+        renderPairList();
+        saveWorkspaceState();
+      });
+    });
+  }
+
+  /* ---------------- team naming ---------------- */
+  function pickNames(list, count, suffix){
+    const shuffled = shuffle(list);
+    const result = [];
+    for(let i = 0; i < count; i++){
+      if(i < shuffled.length) result.push(shuffled[i] + suffix);
+      else result.push(shuffled[i % shuffled.length] + suffix + ' ' + (Math.floor(i / shuffled.length) + 1));
+    }
+    return result;
+  }
+  function generateTeamNames(mode, count){
+    if(mode === 'colors') return pickNames(COLOR_NAMES, count, ' Team');
+    if(mode === 'fun') return pickNames(FUN_NAMES, count, '');
+    return Array.from({length: count}, (_, i) => 'Team ' + (i + 1));
+  }
+
+  /* ---------------- group generation ---------------- */
+  function shuffle(arr){
+    const a = [...arr];
+    for(let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i+1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  }
+  function computeNumTeams(){
+    const n = roster.length;
+    const value = Math.max(1, parseInt(document.getElementById('sizeValue').value) || 1);
+    if(groupMode === 'count') return Math.max(1, Math.min(value, n));
+    return Math.max(1, Math.ceil(n / value));
+  }
+  function countViolations(teamArr){
+    let count = 0;
+    teamArr.forEach(t => {
+      const ids = new Set(t.students.map(s => s.id));
+      keepApartPairs.forEach(([a,b]) => { if(ids.has(a) && ids.has(b)) count++; });
+    });
+    return count;
+  }
+  function generateTeams(){
+    const numTeams = computeNumTeams();
+    const regenNames = !teams || teamNamingMode !== lastNamingMode || numTeams !== lastNumTeams;
+    const nameList = regenNames ? generateTeamNames(teamNamingMode, numTeams) : null;
+    let best = null, bestViolations = Infinity;
+    for(let attempt = 0; attempt < 300; attempt++){
+      const shuffled = shuffle(roster);
+      const arr = Array.from({length: numTeams}, (_, i) => ({
+        id: 'team_' + i,
+        name: regenNames ? nameList[i] : (teams[i] ? teams[i].name : ('Team ' + (i+1))),
+        students: []
+      }));
+      shuffled.forEach((s, i) => arr[i % numTeams].students.push(s));
+      const v = countViolations(arr);
+      if(v < bestViolations){ bestViolations = v; best = arr; if(v === 0) break; }
+    }
+    teams = best; lastViolations = bestViolations; lastNamingMode = teamNamingMode; lastNumTeams = numTeams;
+    renderTeamsSection(); updatePresentButton(); saveWorkspaceState();
+  }
+
+  /* ---------------- rendering: teams ---------------- */
+  function renderTeamsSection(){
+    const section = document.getElementById('teamsSection');
+    if(!teams){ section.classList.add('hidden'); return; }
+    section.classList.remove('hidden');
+
+    document.getElementById('violationNote').innerHTML = lastViolations > 0
+      ? `<div class="violation-note">Couldn't fully separate every "keep apart" pair (${lastViolations} pair${lastViolations===1?'':'s'} still together). Try shuffling again or adjust manually below.</div>`
+      : '';
+
+    const grid = document.getElementById('teamsGrid');
+    grid.innerHTML = '';
+    teams.forEach((team, ti) => {
+      const card = document.createElement('div');
+      card.className = 'team-card';
+      card.dataset.ti = ti;
+      const teamOptions = teams.map((t, i) => `<option value="${i}">${escapeHtml(t.name)}</option>`).join('');
+      card.innerHTML = `
+        <div class="team-card-head">
+          <input class="team-name-input" data-ti="${ti}" value="${escapeHtml(team.name)}">
+          <span class="team-count">${team.students.length}</span>
+        </div>
+        <div class="student-list">
+          ${team.students.map((s, si) => `
+            <div class="team-student" draggable="true" data-ti="${ti}" data-si="${si}">
+              <span class="sname"><span class="drag-handle">⠿</span>${escapeHtml(s.name)}${gradeBadge(s)}</span>
+              <select data-ti="${ti}" data-si="${si}">${teamOptions}</select>
+            </div>
+          `).join('')}
+        </div>
+      `;
+      card.querySelector('.team-name-input').addEventListener('input', (e) => {
+        teams[parseInt(e.target.dataset.ti)].name = e.target.value;
+        saveWorkspaceState();
+      });
+      card.querySelectorAll('select').forEach(sel => {
+        sel.value = ti;
+        sel.addEventListener('change', (e) => {
+          const fromTi = parseInt(e.target.dataset.ti), si = parseInt(e.target.dataset.si), toTi = parseInt(e.target.value);
+          if(fromTi === toTi) return;
+          const [student] = teams[fromTi].students.splice(si, 1);
+          teams[toTi].students.push(student);
+          renderTeamsSection(); saveWorkspaceState();
+        });
+      });
+      card.addEventListener('dragover', (e) => { e.preventDefault(); card.classList.add('drag-over'); });
+      card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+      card.addEventListener('drop', (e) => {
+        e.preventDefault(); card.classList.remove('drag-over');
+        if(!draggedFrom) return;
+        if(draggedFrom.ti === ti){ draggedFrom = null; return; }
+        const [student] = teams[draggedFrom.ti].students.splice(draggedFrom.si, 1);
+        teams[ti].students.push(student);
+        draggedFrom = null;
+        renderTeamsSection(); saveWorkspaceState();
+      });
+      grid.appendChild(card);
+    });
+
+    grid.querySelectorAll('.team-student').forEach(row => {
+      row.addEventListener('dragstart', (e) => {
+        draggedFrom = { ti: parseInt(row.dataset.ti), si: parseInt(row.dataset.si) };
+        row.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      row.addEventListener('dragend', () => row.classList.remove('dragging'));
+    });
+  }
+
+  function updatePresentButton(){
+    document.getElementById('presentBtn').disabled = !teams || teams.length === 0;
+  }
+
+  /* ---------------- present view ---------------- */
+  function renderPresentGrid(){
+    document.getElementById('presentGrid').innerHTML = teams.map(t => `
+      <div class="chalk-card">
+        <h3>${escapeHtml(t.name)} <span class="n">${t.students.length}</span></h3>
+        <ul>${t.students.map(s => `<li>${escapeHtml(s.name)}${gradeBadge(s, true)}</li>`).join('')}</ul>
+      </div>
+    `).join('');
+  }
+
+  /* ---------------- export ---------------- */
+  function exportExcel(){
+    if(!teams) return;
+    const rows = [['Team', 'Student', 'Grade']];
+    teams.forEach(t => t.students.forEach(s => rows.push([t.name, s.name, (s.raw && s.raw.grade) || ''])));
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{ wch: 20 }, { wch: 26 }, { wch: 8 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Teams');
+    XLSX.writeFile(wb, 'teams.xlsx');
+  }
+  function exportPdf(){
+    if(!teams) return;
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    let y = 20;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.text('Teams', 14, y); y += 12;
+    doc.setFontSize(12);
+    teams.forEach(team => {
+      if(y > 275){ doc.addPage(); y = 20; }
+      doc.setFont('helvetica', 'bold'); doc.text(team.name + ' (' + team.students.length + ')', 14, y); y += 7;
+      doc.setFont('helvetica', 'normal');
+      team.students.forEach(s => {
+        if(y > 285){ doc.addPage(); y = 20; }
+        doc.text('• ' + s.name, 20, y); y += 6;
+      });
+      y += 5;
+    });
+    doc.save('teams.pdf');
+  }
+
+  // Captures the actual styled present-view cards as an image and drops them into a PDF —
+  // this is a real screenshot of what's on screen, not a re-typeset text list.
+  async function exportPresentPdf(){
+    const btn = document.getElementById('presentPdfBtn');
+    const original = btn.textContent;
+    btn.textContent = 'Rendering…';
+    btn.disabled = true;
+    try{
+      const target = document.getElementById('presentGrid');
+      const canvas = await html2canvas(target, { backgroundColor: '#182420', scale: 2, useCORS: true });
+      const imgData = canvas.toDataURL('image/png');
+      const { jsPDF } = window.jspdf;
+      const orientation = canvas.width >= canvas.height ? 'landscape' : 'portrait';
+      const doc = new jsPDF({ orientation, unit: 'pt', format: 'letter' });
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
+      doc.setFillColor(24, 36, 32);
+      doc.rect(0, 0, pageW, pageH, 'F');
+      const margin = 24;
+      const ratio = canvas.width / canvas.height;
+      let w = pageW - margin * 2;
+      let h = w / ratio;
+      if(h > pageH - margin * 2){ h = pageH - margin * 2; w = h * ratio; }
+      doc.addImage(imgData, 'PNG', (pageW - w) / 2, (pageH - h) / 2, w, h);
+      doc.save('teams-presentation.pdf');
+    }catch(err){
+      alert('Could not generate the PDF: ' + err.message);
+    }finally{
+      btn.textContent = original;
+      btn.disabled = false;
+    }
+  }
+
+  /* ---------------- Grade Book Grid (.xls/.xlsx) bulk import ---------------- */
+  function looksLikeSectionHeader(line){
+    return /^\(/.test(line.trim()) && /(GR\b|SEC:)/i.test(line);
+  }
+  function parseSectionHeader(line){
+    const m = line.match(/^\(([^)]*)\)\s*([^,]+),\s*([A-Za-z.\s]+?)\s+(\d{1,2})(?:ST|ND|RD|TH)?\s*GR\s+(.+?)\s*\((\d+)\)\s*SEC:\s*(\S+)/i);
+    if(m){
+      return {
+        term: m[1].trim(),
+        teacher: m[2].trim() + ', ' + m[3].trim(),
+        gradeLevel: m[4].trim(),
+        subject: m[5].trim().replace(/\s+/g, ' '),
+        period: m[6].trim(),
+        section: m[7].trim()
+      };
+    }
+    return null;
+  }
+  function suggestClassName(meta, headerLine){
+    if(meta && meta.teacher){
+      const parts = [meta.teacher];
+      if(meta.subject) parts.push(meta.subject);
+      if(meta.period) parts.push('Period ' + meta.period);
+      return parts.join(' — ');
+    }
+    return headerLine;
+  }
+
+  async function readSpreadsheetMatrix(file){
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    return XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+  }
+
+  function firstNonEmptyCell(row){
+    // Which spreadsheet column holds the real text can vary by export tool
+    // (sometimes column A, sometimes B) — scan instead of assuming a fixed index.
+    for(let c = 0; c < row.length; c++){
+      const v = row[c];
+      if(v != null && String(v).trim() !== '') return String(v).trim();
+    }
+    return '';
+  }
+
+  function parseGradeBookGrid(matrix){
+    const blocks = [];
+    let current = null;
+    matrix.forEach(row => {
+      const cellB = firstNonEmptyCell(row);
+      if(!cellB) return;
+      if(looksLikeSectionHeader(cellB)){
+        if(current) blocks.push(current);
+        const meta = parseSectionHeader(cellB) || {};
+        current = { headerLine: cellB, meta, name: suggestClassName(meta, cellB), students: [], include: true };
+        return;
+      }
+      if(!current) return; // title/school-name/date lines before the first section header
+      const commaMatch = cellB.match(/^([A-Za-z'’\-\.\s]+),\s*(.+)$/);
+      if(commaMatch){
+        current.students.push({
+          lastName: commaMatch[1].trim(), firstName: commaMatch[2].trim(), nickname: '',
+          permId: '', grade: current.meta.gradeLevel || '', gender: '', birthDate: ''
+        });
+      }
+    });
+    if(current) blocks.push(current);
+    return blocks;
+  }
+
+  /* ---------------- roster line parsing (PDF / paste) ---------------- */
+  function looksLikeName(line){
+    let s = line.replace(/[#*•]/g, '').trim();
+    if(!s) return false;
+    const lower = s.toLowerCase();
+    const bad = ['class list','roster','period','teacher','grade','school','page','date','student id','id:','count','total','homeroom','attendance','subject','section','absent','present','perm id','birth date'];
+    if(bad.some(b => lower.includes(b))) return false;
+    let cleaned = s.replace(/^\d+[\.\)]?\s*/, '').replace(/\d+\s*$/, '').trim();
+    if(cleaned.length > 60 || cleaned.length < 2) return false;
+    const tokens = cleaned.split(/[,\s]+/).filter(t => /[A-Za-z]/.test(t));
+    return tokens.length >= 2;
+  }
+  function normalizeGender(g){
+    const l = String(g).toLowerCase();
+    if(l === 'm' || l === 'male') return 'Male';
+    if(l === 'f' || l === 'female') return 'Female';
+    return g;
+  }
+  function parseRosterLines(lines){
+    // Skip everything up through the real column-header row (e.g. "Student Name  Perm ID  Grade  Gender  Birth Date").
+    // This reliably drops school name / year / report-ID title lines regardless of exact wording,
+    // instead of relying only on keyword filtering below.
+    const headerIdx = lines.findIndex(l => /perm\s*id/i.test(l) || (/student\s*name/i.test(l) && /grade/i.test(l)));
+    const relevantLines = headerIdx !== -1 ? lines.slice(headerIdx + 1) : lines;
+
+    const out = [];
+    relevantLines.forEach(raw => {
+      const s = raw.trim();
+      if(!s) return;
+      // Structured format: "Last, First(s) PermID Grade Gender MM/DD/YYYY"
+      const m = s.match(/^([A-Za-z'’\-\.\s]+?),\s*([A-Za-z'’\-\.\s]+?)\s+(\d{4,})\s+(\d{1,2})\s+(Male|Female|M|F)\s+(\d{1,2}\/\d{1,2}\/\d{2,4})\s*$/i);
+      if(m){
+        out.push({ lastName: m[1].trim(), firstName: m[2].trim(), nickname: '', permId: m[3], grade: m[4], gender: normalizeGender(m[5]), birthDate: m[6] });
+        return;
+      }
+      if(!looksLikeName(s)) return;
+      const commaMatch = s.match(/^([A-Za-z'’\-]+),\s*(.+)$/);
+      let lastName = '', firstName = '';
+      if(commaMatch){ lastName = commaMatch[1].trim(); firstName = commaMatch[2].trim(); }
+      else{
+        const cleaned = s.replace(/^\d+[\.\)]?\s*/, '').replace(/\s+\d+\s*$/, '').trim();
+        const parts = cleaned.split(/\s+/);
+        lastName = parts.length > 1 ? parts[parts.length - 1] : '';
+        firstName = parts.length > 1 ? parts.slice(0, -1).join(' ') : cleaned;
+      }
+      out.push({ lastName, firstName, nickname: '', permId: '', grade: '', gender: '', birthDate: '' });
+    });
+    return out;
+  }
+
+  /* ---------------- roster table editor (create / edit / replace) ---------------- */
+  function renderRosterTable(){
+    const tbody = document.getElementById('rosterTableBody');
+    tbody.innerHTML = modalStudents.map((s, idx) => `
+      <tr data-idx="${idx}">
+        <td><input data-f="lastName" value="${escapeAttr(s.lastName)}"></td>
+        <td><input data-f="firstName" value="${escapeAttr(s.firstName)}"></td>
+        <td><input data-f="nickname" value="${escapeAttr(s.nickname)}" placeholder="optional"></td>
+        <td><input data-f="permId" value="${escapeAttr(s.permId)}"></td>
+        <td class="col-grade"><input data-f="grade" value="${escapeAttr(s.grade)}"></td>
+        <td>
+          <select data-f="gender">
+            <option value="" ${!s.gender?'selected':''}>—</option>
+            <option value="Female" ${s.gender==='Female'?'selected':''}>Female</option>
+            <option value="Male" ${s.gender==='Male'?'selected':''}>Male</option>
+          </select>
+        </td>
+        <td><input data-f="birthDate" value="${escapeAttr(s.birthDate)}" placeholder="MM/DD/YYYY"></td>
+        <td class="col-del"><button data-idx="${idx}" title="Remove">✕</button></td>
+      </tr>
+    `).join('');
+
+    tbody.querySelectorAll('input, select').forEach(field => {
+      field.addEventListener('input', (e) => {
+        const idx = parseInt(e.target.closest('tr').dataset.idx);
+        modalStudents[idx][e.target.dataset.f] = e.target.value;
+      });
+    });
+    tbody.querySelectorAll('.col-del button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        modalStudents.splice(parseInt(btn.dataset.idx), 1);
+        renderRosterTable();
+      });
+    });
+    document.getElementById('tableCount').textContent = modalStudents.length + ' student' + (modalStudents.length===1?'':'s');
+  }
+
+  function appendParsedStudents(parsed, sourceLabel){
+    modalStudents = modalStudents.concat(parsed);
+    renderRosterTable();
+    document.getElementById('parseNote').textContent = parsed.length
+      ? `Added ${parsed.length} row${parsed.length===1?'':'s'} from ${sourceLabel}. Review the table below before saving.`
+      : `Couldn't find recognizable student rows in ${sourceLabel}. Try pasting text instead, or add students by hand with "+ Add student."`;
+  }
+
+  /* ---------------- roster modal open/save ---------------- */
+  function showModal(){ document.getElementById('rosterModal').classList.remove('hidden'); }
+  function closeModal(){ document.getElementById('rosterModal').classList.add('hidden'); }
+  function clearModalError(){ document.getElementById('modalErr').classList.add('hidden'); }
+  function showModalError(msg){ const e = document.getElementById('modalErr'); e.textContent = msg; e.classList.remove('hidden'); }
+
+  function resetModalShell(){
+    document.getElementById('className').value = '';
+    document.getElementById('pasteInput').value = '';
+    document.getElementById('parseNote').textContent = '';
+    clearModalError();
+    setProgress('');
+  }
+
+  function openCreateModal(){
+    modalMode = 'create'; modalClassId = null; modalStudents = []; modalOriginalIds = new Set();
+    resetModalShell();
+    document.getElementById('modalTitle').textContent = 'Add a class';
+    document.getElementById('modalSub').textContent = 'Paste lines or add students by hand. For a full class, "+ Import spreadsheet" on the sidebar is faster.';
+    document.getElementById('classNameField').classList.remove('hidden');
+    document.getElementById('saveClassBtn').textContent = 'Save class';
+    renderRosterTable();
+    showModal();
+  }
+
+  async function openEditModal(classId){
+    modalMode = 'edit'; modalClassId = classId;
+    resetModalShell();
+    const cls = classIndex.find(c => c.id === classId);
+    document.getElementById('modalTitle').textContent = 'Edit roster — ' + (cls ? cls.name : '');
+    document.getElementById('modalSub').textContent = 'Add, fix, or remove students — including nicknames. Saves to the shared sheet.';
+    document.getElementById('classNameField').classList.add('hidden');
+    document.getElementById('saveClassBtn').textContent = 'Save changes';
+    modalStudents = []; modalOriginalIds = new Set();
+    renderRosterTable();
+    showModal();
+    document.getElementById('parseNote').textContent = 'Loading current roster…';
+    try{
+      const data = await api.getRoster(classId);
+      modalStudents = data.students.map(s => ({ ...s }));
+      modalOriginalIds = new Set(data.students.map(s => s.id));
+      document.getElementById('parseNote').textContent = '';
+    }catch(err){
+      document.getElementById('parseNote').textContent = '';
+      showModalError('Could not load roster: ' + err.message);
+    }
+    renderRosterTable();
+  }
+
+  function openReplaceModal(classId){
+    modalMode = 'replace'; modalClassId = classId;
+    resetModalShell();
+    const cls = classIndex.find(c => c.id === classId);
+    document.getElementById('modalTitle').textContent = 'Replace roster — ' + (cls ? cls.name : '');
+    document.getElementById('modalSub').textContent = 'This swaps out the whole roster. Import a new list, review it, then save.';
+    document.getElementById('classNameField').classList.add('hidden');
+    document.getElementById('saveClassBtn').textContent = 'Replace roster';
+    modalStudents = []; modalOriginalIds = new Set();
+    renderRosterTable();
+    showModal();
+  }
+
+  function setSaving(saving){
+    document.getElementById('saveClassBtn').disabled = saving;
+    document.getElementById('saveClassBtn').textContent = saving ? 'Saving…' : (modalMode==='create'?'Save class': modalMode==='replace'?'Replace roster':'Save changes');
+  }
+
+  function setProgress(msg){ document.getElementById('saveProgress').textContent = msg || ''; }
+
+  async function saveModal(){
+    clearModalError();
+    if(modalMode === 'create'){
+      const name = document.getElementById('className').value.trim();
+      if(!name){ showModalError('Give this class a name.'); return; }
+      if(modalStudents.length < 1){ showModalError('Add at least one student.'); return; }
+      setSaving(true);
+      try{
+        const res = await withRetry(() => api.createClass(name), 2, 900);
+        await saveStudentsBatched(res.id, modalStudents, (done, total) => setProgress('Saving ' + done + ' of ' + total + '…'));
+        setProgress('');
+        selectedClassIds.add(res.id);
+        closeModal();
+        await refreshClassList();
+        await rebuildRoster(true);
+        await saveWorkspaceState();
+      }catch(err){ setProgress(''); showModalError(err.message); setSaving(false); return; }
+      setSaving(false);
+    } else if(modalMode === 'replace'){
+      if(modalStudents.length < 1){ showModalError('Import or add at least one student.'); return; }
+      if(!confirm('Replace the entire roster for this class? This cannot be undone.')) return;
+      setSaving(true);
+      try{
+        setProgress('Clearing existing roster…');
+        await withRetry(() => api.clearRoster(modalClassId), 2, 900);
+        await saveStudentsBatched(modalClassId, modalStudents, (done, total) => setProgress('Saving ' + done + ' of ' + total + '…'));
+        setProgress('');
+        closeModal();
+        await refreshClassList();
+        await rebuildRoster(true);
+        await saveWorkspaceState();
+      }catch(err){ setProgress(''); showModalError(err.message); setSaving(false); return; }
+      setSaving(false);
+    } else if(modalMode === 'edit'){
+      setSaving(true);
+      try{
+        const currentIds = new Set(modalStudents.filter(s => s.id).map(s => s.id));
+        const toDelete = Array.from(modalOriginalIds).filter(id => !currentIds.has(id));
+        const toUpdate = modalStudents.filter(s => s.id && modalOriginalIds.has(s.id));
+        const toAdd = modalStudents.filter(s => !s.id);
+        const totalOps = toDelete.length + toUpdate.length + toAdd.length;
+        let done = 0;
+        for(const origId of toDelete){
+          done++; setProgress('Saving ' + done + ' of ' + totalOps + '…');
+          await withRetry(() => api.deleteStudent(modalClassId, origId), 2, 900);
+        }
+        for(const s of toUpdate){
+          done++; setProgress('Saving ' + done + ' of ' + totalOps + '…');
+          await withRetry(() => api.updateStudent(modalClassId, s.id, cleanStudent(s)), 2, 900);
+        }
+        await saveStudentsBatched(modalClassId, toAdd, (batchDone) => setProgress('Saving ' + (done + batchDone) + ' of ' + totalOps + '…'));
+        setProgress('');
+        closeModal();
+        await refreshClassList();
+        await rebuildRoster(true);
+        await saveWorkspaceState();
+      }catch(err){ setProgress(''); showModalError(err.message); setSaving(false); return; }
+      setSaving(false);
+    }
+  }
+
+  /* ---------------- bulk import (Grade Book Grid) ---------------- */
+  function openBulkModal(){
+    if(!API_URL){ openSettings(); return; }
+    bulkBlocks = [];
+    document.getElementById('bulkDropzoneText').textContent = 'Click to choose a .xls or .xlsx file, or drag one here.';
+    document.getElementById('bulkParseNote').textContent = '';
+    document.getElementById('bulkBlocksList').innerHTML = '';
+    document.getElementById('bulkErr').classList.add('hidden');
+    document.getElementById('bulkProgress').textContent = '';
+    document.getElementById('bulkSaveBtn').disabled = true;
+    document.getElementById('bulkModal').classList.remove('hidden');
+  }
+  function closeBulkModal(){ document.getElementById('bulkModal').classList.add('hidden'); }
+
+  async function handleBulkFile(file){
+    if(!file) return;
+    const dz = document.getElementById('bulkDropzone');
+    dz.classList.add('busy');
+    document.getElementById('bulkDropzoneText').textContent = 'Reading ' + file.name + '…';
+    try{
+      const matrix = await readSpreadsheetMatrix(file);
+      bulkBlocks = parseGradeBookGrid(matrix);
+      document.getElementById('bulkDropzoneText').textContent = 'Loaded: ' + file.name;
+      document.getElementById('bulkParseNote').textContent = bulkBlocks.length
+        ? `Found ${bulkBlocks.length} class${bulkBlocks.length===1?'':'es'}. Review names below, uncheck any you don't want, then import.`
+        : 'Could not find any class sections in this file. It may not be a Grade Book Grid export — try "+ New class" instead.';
+      renderBulkBlocks();
+    }catch(err){
+      document.getElementById('bulkParseNote').textContent = 'Could not read that file: ' + err.message;
+    }finally{
+      dz.classList.remove('busy');
+    }
+  }
+
+  function renderBulkBlocks(){
+    const el = document.getElementById('bulkBlocksList');
+    el.innerHTML = bulkBlocks.map((b, i) => {
+      const tags = [];
+      if(b.meta.teacher) tags.push(b.meta.teacher);
+      if(b.meta.gradeLevel) tags.push('Gr ' + b.meta.gradeLevel);
+      if(b.meta.period) tags.push('Period ' + b.meta.period);
+      if(b.meta.subject) tags.push(b.meta.subject);
+      return `
+        <div class="bulk-block">
+          <input type="checkbox" data-i="${i}" ${b.include ? 'checked' : ''}>
+          <div class="bulk-block-body">
+            <input class="bulk-block-name" data-i="${i}" value="${escapeAttr(b.name)}">
+            <div class="bulk-block-meta">
+              ${tags.map(t => `<span class="meta-tag">${escapeHtml(t)}</span>`).join('')}
+              <span class="meta-tag">${b.students.length} student${b.students.length===1?'':'s'}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+    el.querySelectorAll('input[type=checkbox]').forEach(cb => {
+      cb.addEventListener('change', (e) => { bulkBlocks[parseInt(e.target.dataset.i)].include = e.target.checked; updateBulkSaveEnabled(); });
+    });
+    el.querySelectorAll('.bulk-block-name').forEach(inp => {
+      inp.addEventListener('input', (e) => { bulkBlocks[parseInt(e.target.dataset.i)].name = e.target.value; });
+    });
+    updateBulkSaveEnabled();
+  }
+  function updateBulkSaveEnabled(){
+    document.getElementById('bulkSaveBtn').disabled = !bulkBlocks.some(b => b.include);
+  }
+
+  async function saveBulkImport(){
+    const errEl = document.getElementById('bulkErr');
+    errEl.classList.add('hidden');
+    const selected = bulkBlocks.filter(b => b.include);
+    if(!selected.length){ errEl.textContent = 'Select at least one class.'; errEl.classList.remove('hidden'); return; }
+    const invalid = selected.find(b => !b.name.trim());
+    if(invalid){ errEl.textContent = 'Every selected class needs a name.'; errEl.classList.remove('hidden'); return; }
+
+    document.getElementById('bulkSaveBtn').disabled = true;
+    const progress = document.getElementById('bulkProgress');
+    try{
+      for(let ci = 0; ci < selected.length; ci++){
+        const block = selected[ci];
+        progress.textContent = `Class ${ci+1} of ${selected.length}: creating "${block.name}"…`;
+        const res = await withRetry(() => api.createClass(block.name.trim(), block.meta), 2, 900);
+        await saveStudentsBatched(res.id, block.students, (done, total) => {
+          progress.textContent = `Class ${ci+1} of ${selected.length}: saving ${done} of ${total} students…`;
+        });
+        selectedClassIds.add(res.id);
+      }
+      progress.textContent = '';
+      closeBulkModal();
+      await refreshClassList();
+      await rebuildRoster(true);
+      await saveWorkspaceState();
+    }catch(err){
+      progress.textContent = '';
+      errEl.textContent = err.message;
+      errEl.classList.remove('hidden');
+    }
+    document.getElementById('bulkSaveBtn').disabled = false;
+  }
+
+  /* ---------------- utils ---------------- */
+  function gradeBadge(s, onChalk){
+    const g = s.raw && s.raw.grade ? String(s.raw.grade).trim() : '';
+    if(!g) return '';
+    return `<span class="grade-badge${onChalk?' on-chalk':''}">Gr ${escapeHtml(g)}</span>`;
+  }
+  function escapeHtml(str){ const d = document.createElement('div'); d.textContent = str == null ? '' : String(str); return d.innerHTML; }
+  function escapeAttr(str){ return escapeHtml(str).replace(/"/g, '&quot;'); }
+  function genLocalId(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+  /* ---------------- shared workspace state (session only, not student PII) ---------------- */
+  async function saveWorkspaceState(){
+    const state = {
+      selectedClassIds: Array.from(selectedClassIds),
+      groupMode, teamNamingMode,
+      sizeValue: document.getElementById('sizeValue').value,
+      keepApartPairs, teams
+    };
+    await storeSet('workspace-state', state, true);
+  }
+
+  /* ---------------- settings ---------------- */
+  function openSettings(){
+    document.getElementById('apiUrlInput').value = API_URL || '';
+    document.getElementById('settingsErr').classList.add('hidden');
+    document.getElementById('settingsStatus').textContent = '';
+    document.getElementById('settingsModal').classList.remove('hidden');
+  }
+  function closeSettings(){ document.getElementById('settingsModal').classList.add('hidden'); }
+
+  async function saveSettings(){
+    const url = document.getElementById('apiUrlInput').value.trim();
+    const errEl = document.getElementById('settingsErr');
+    errEl.classList.add('hidden');
+    if(!url || !url.startsWith('https://script.google.com/')){
+      errEl.textContent = 'That doesn\'t look like an Apps Script web app URL (should start with https://script.google.com/).';
+      errEl.classList.remove('hidden');
+      return;
+    }
+    API_URL = url;
+    await storeSet('api-url', API_URL, true);
+    closeSettings();
+    await refreshClassList();
+  }
+
+  async function testConnection(){
+    const statusEl = document.getElementById('settingsStatus');
+    const url = document.getElementById('apiUrlInput').value.trim();
+    if(!url){ statusEl.textContent = 'Paste a URL first.'; return; }
+    statusEl.textContent = 'Testing…';
+    const prevUrl = API_URL;
+    API_URL = url;
+    try{
+      const list = await api.listClasses();
+      statusEl.textContent = 'Connected — found ' + list.length + ' class' + (list.length===1?'':'es') + ' on the sheet.';
+    }catch(err){
+      statusEl.textContent = 'Could not connect: ' + err.message;
+    }
+    API_URL = prevUrl;
+  }
+
+  /* ---------------- events ---------------- */
+  function bindEvents(){
+    document.getElementById('settingsBtn').addEventListener('click', openSettings);
+    document.getElementById('startNewBtn').addEventListener('click', startNewGroupings);
+    document.getElementById('closeSettingsBtn').addEventListener('click', closeSettings);
+    document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
+    document.getElementById('testConnBtn').addEventListener('click', testConnection);
+
+    document.getElementById('newClassBtn').addEventListener('click', () => {
+      if(!API_URL){ openSettings(); return; }
+      openCreateModal();
+    });
+    document.getElementById('bulkImportBtn').addEventListener('click', openBulkModal);
+    document.getElementById('bulkCancelBtn').addEventListener('click', closeBulkModal);
+    document.getElementById('bulkSaveBtn').addEventListener('click', saveBulkImport);
+    const bulkDz = document.getElementById('bulkDropzone');
+    const bulkFileInput = document.getElementById('bulkFileInput');
+    bulkDz.addEventListener('click', () => bulkFileInput.click());
+    bulkFileInput.addEventListener('change', (e) => handleBulkFile(e.target.files[0]));
+    bulkDz.addEventListener('dragover', (e) => { e.preventDefault(); bulkDz.style.borderColor = 'var(--teal)'; });
+    bulkDz.addEventListener('dragleave', () => { bulkDz.style.borderColor = ''; });
+    bulkDz.addEventListener('drop', (e) => {
+      e.preventDefault(); bulkDz.style.borderColor = '';
+      const file = e.dataTransfer.files[0];
+      if(file) handleBulkFile(file);
+    });
+    document.getElementById('cancelModalBtn').addEventListener('click', closeModal);
+    document.getElementById('saveClassBtn').addEventListener('click', saveModal);
+    document.getElementById('addRowBtn').addEventListener('click', () => {
+      modalStudents.push({ lastName:'', firstName:'', nickname:'', permId:'', grade:'', gender:'', birthDate:'' });
+      renderRosterTable();
+    });
+
+    document.getElementById('importPasteBtn').addEventListener('click', () => {
+      const text = document.getElementById('pasteInput').value;
+      const lines = text.split('\n');
+      const parsed = parseRosterLines(lines);
+      appendParsedStudents(parsed, 'pasted text');
+      document.getElementById('pasteInput').value = '';
+    });
+
+    document.getElementById('sizeValue').addEventListener('change', saveWorkspaceState);
+    bindConfigEvents();
+
+    document.getElementById('shuffleAgainBtn').addEventListener('click', generateTeams);
+    document.getElementById('exportExcelBtn').addEventListener('click', exportExcel);
+    document.getElementById('exportPdfBtn').addEventListener('click', exportPdf);
+
+    document.getElementById('presentBtn').addEventListener('click', () => {
+      renderPresentGrid();
+      document.getElementById('presentView').classList.remove('hidden');
+    });
+    document.getElementById('exitPresentBtn').addEventListener('click', () => {
+      document.getElementById('presentView').classList.add('hidden');
+      if(document.fullscreenElement) document.exitFullscreen();
+    });
+    document.getElementById('presentShuffleBtn').addEventListener('click', () => { generateTeams(); renderPresentGrid(); });
+    document.getElementById('presentPdfBtn').addEventListener('click', exportPresentPdf);
+    document.getElementById('fullscreenBtn').addEventListener('click', () => {
+      const el = document.getElementById('presentView');
+      if(!document.fullscreenElement) el.requestFullscreen().catch(()=>{});
+      else document.exitFullscreen();
+    });
+  }
+
+})();
+</script>
+</body>
+</html>
