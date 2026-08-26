@@ -96,12 +96,10 @@
   .toggle-opt{flex:1;min-width:90px;text-align:center;padding:8px 6px;border-radius:8px;border:1.5px solid rgba(32,41,31,0.18);font-size:12.5px;font-weight:600;cursor:pointer;}
   .toggle-opt.active{background:var(--teal);color:#fff;border-color:var(--teal);}
   .num-input{width:100%;padding:9px 10px;border-radius:8px;border:1.5px solid rgba(32,41,31,0.2);font-size:15px;font-weight:600;}
-  .keepapart-row{display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap;}
-  .keepapart-row select{flex:1 1 110px;min-width:0;padding:7px 8px;border-radius:7px;border:1.5px solid rgba(32,41,31,0.2);font-size:13px;}
-  .keepapart-row button{flex-shrink:0;}
-  .pair-list{display:flex;flex-direction:column;gap:6px;margin-top:8px;max-height:110px;overflow-y:auto;}
-  .pair-pill{display:flex;justify-content:space-between;align-items:center;background:var(--paper);border-radius:7px;padding:5px 9px;font-size:12.5px;}
-  .pair-pill button{background:none;border:none;color:var(--danger);font-size:13px;}
+  .pair-box{border:1.5px solid rgba(32,41,31,0.18);border-radius:9px;padding:10px 10px 8px;margin-bottom:10px;background:var(--paper);}
+  .pair-box-label{font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);margin-bottom:6px;}
+  .pair-box select{display:block;width:100%;min-width:0;padding:7px 8px;border-radius:7px;border:1.5px solid rgba(32,41,31,0.2);font-size:13px;margin-bottom:6px;}
+  .pair-box-remove{background:none;border:none;color:var(--danger);font-size:12px;padding:2px 0;}
 
   .generate-row{display:flex;justify-content:flex-end;margin-top:16px;gap:10px;}
 
@@ -246,12 +244,8 @@
         </div>
         <div class="field">
           <label>Keep these students apart (optional)</label>
-          <div class="keepapart-row">
-            <select id="pairA"></select>
-            <select id="pairB"></select>
-            <button class="btn btn-ghost btn-sm" id="addPairBtn">Add</button>
-          </div>
-          <div class="pair-list" id="pairList"></div>
+          <div id="pairBoxes"></div>
+          <button class="btn btn-ghost btn-sm" id="addPairBtn">+ Add pair</button>
         </div>
       </div>
       <div class="generate-row">
@@ -725,7 +719,6 @@
 
   function renderConfigVisibility(){
     document.getElementById('configSection').classList.toggle('hidden', roster.length < 2);
-    populatePairSelects();
     renderPairList();
   }
 
@@ -748,35 +741,46 @@
       });
     });
     document.getElementById('addPairBtn').addEventListener('click', () => {
-      const aSel = document.getElementById('pairA'), bSel = document.getElementById('pairB');
-      const a = aSel.value, b = bSel.value;
-      if(!a || !b || a === b) return;
-      const exists = keepApartPairs.some(([x,y]) => (x===a&&y===b)||(x===b&&y===a));
-      if(!exists) keepApartPairs.push([a,b]);
-      aSel.value = ''; bSel.value = '';
+      keepApartPairs.push(['', '']);
       renderPairList();
       saveWorkspaceState();
     });
     document.getElementById('generateBtn').addEventListener('click', generateTeams);
   }
 
-  function populatePairSelects(){
-    const a = document.getElementById('pairA'), b = document.getElementById('pairB');
-    const opts = roster.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
-    a.innerHTML = '<option value="">Student A…</option>' + opts;
-    b.innerHTML = '<option value="">Student B…</option>' + opts;
-  }
-
+  // Renders keep-apart pairs as a stack of boxes, each holding two dropdowns
+  // (row 1 = first student, row 2 = second). There's always at least one box
+  // showing; "+ Add pair" appends another beneath it, pushing the button down
+  // with it. Blank/incomplete boxes are simply ignored when drawing teams.
   function renderPairList(){
-    const el = document.getElementById('pairList');
-    if(keepApartPairs.length === 0){ el.innerHTML = ''; return; }
-    el.innerHTML = keepApartPairs.map(([a,b], i) => {
-      const na = roster.find(s => s.id === a), nb = roster.find(s => s.id === b);
-      return `<div class="pair-pill"><span>${escapeHtml(na?na.name:'?')} ↔ ${escapeHtml(nb?nb.name:'?')}</span><button data-i="${i}">✕</button></div>`;
-    }).join('');
-    el.querySelectorAll('button').forEach(btn => {
+    if(keepApartPairs.length === 0) keepApartPairs.push(['', '']);
+    const el = document.getElementById('pairBoxes');
+    const opts = roster.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+    el.innerHTML = keepApartPairs.map((pair, i) => `
+      <div class="pair-box">
+        <div class="pair-box-label">Pairing ${i + 1}</div>
+        <select data-i="${i}" data-slot="0">
+          <option value="">Student A…</option>${opts}
+        </select>
+        <select data-i="${i}" data-slot="1">
+          <option value="">Student B…</option>${opts}
+        </select>
+        <button class="pair-box-remove" data-i="${i}">✕ Remove this pair</button>
+      </div>
+    `).join('');
+    el.querySelectorAll('select').forEach(sel => {
+      const i = parseInt(sel.dataset.i), slot = parseInt(sel.dataset.slot);
+      sel.value = keepApartPairs[i][slot] || '';
+      sel.addEventListener('change', (e) => {
+        keepApartPairs[i][slot] = e.target.value;
+        saveWorkspaceState();
+      });
+    });
+    el.querySelectorAll('.pair-box-remove').forEach(btn => {
       btn.addEventListener('click', () => {
-        keepApartPairs.splice(parseInt(btn.dataset.i), 1);
+        const i = parseInt(btn.dataset.i);
+        if(keepApartPairs.length > 1) keepApartPairs.splice(i, 1);
+        else keepApartPairs[i] = ['', ''];
         renderPairList();
         saveWorkspaceState();
       });
@@ -812,10 +816,11 @@
     return Math.max(1, Math.ceil(n / value));
   }
   function countViolations(teamArr){
+    const validPairs = keepApartPairs.filter(([a,b]) => a && b && a !== b);
     let count = 0;
     teamArr.forEach(t => {
       const ids = new Set(t.students.map(s => s.id));
-      keepApartPairs.forEach(([a,b]) => { if(ids.has(a) && ids.has(b)) count++; });
+      validPairs.forEach(([a,b]) => { if(ids.has(a) && ids.has(b)) count++; });
     });
     return count;
   }
